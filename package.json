@@ -1,0 +1,21 @@
+{
+  "name": "ai-learning-platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "dev:admin": "turbo run dev --filter=@ai-learning/admin",
+    "dev:student": "turbo run dev --filter=@ai-learning/student",
+    "dev:teacher": "turbo run dev --filter=@ai-learning/teacher"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "npm@10.0.0"
+}
