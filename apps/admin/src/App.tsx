@@ -9,7 +9,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ConfigProvider theme={themeConfig} locale={viVN}>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
           <AuthProvider>
             <AppRoutes />
           </AuthProvider>
