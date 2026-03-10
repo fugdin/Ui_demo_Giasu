@@ -1,27 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useRef, type ChangeEventHandler } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Tag, Space, Select, Input, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { PageHeader, DataTable, confirmModal } from '@ai-learning/ui';
 import type { Question, QuestionType, DifficultyLevel } from '@ai-learning/types';
 import { questionsApi } from '@/services/api';
 import type { ColumnsType } from 'antd/es/table';
 
-// ─── Constants ───────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-  single_choice: 'Một đáp án',
-  multiple_choice: 'Nhiều đáp án',
-  fill_in_blank: 'Điền vào chỗ trống',
-  true_false: 'Đúng / Sai',
-  drag_and_drop: 'Kéo thả',
-  sort_paragraphs: 'Sắp xếp đoạn văn',
+  single_choice: 'Má»™t Ä‘Ã¡p Ã¡n',
+  multiple_choice: 'Nhiá»u Ä‘Ã¡p Ã¡n',
+  fill_in_blank: 'Äiá»n vÃ o chá»— trá»‘ng',
+  true_false: 'ÄÃºng / Sai',
+  drag_and_drop: 'KÃ©o tháº£',
+  sort_paragraphs: 'Sáº¯p xáº¿p Ä‘oáº¡n vÄƒn',
 };
 
 const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-  easy: 'Dễ',
-  medium: 'Trung bình',
-  hard: 'Khó',
+  easy: 'Dá»…',
+  medium: 'Trung bÃ¬nh',
+  hard: 'KhÃ³',
 };
 
 const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
@@ -30,10 +36,11 @@ const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
   hard: 'red',
 };
 
-// ─── Component ───────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function QuestionBankPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Data state
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -47,7 +54,7 @@ export default function QuestionBankPage() {
   const [typeFilter, setTypeFilter] = useState<QuestionType | undefined>();
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyLevel | undefined>();
 
-  // ─── Fetch ──────────────────────────────────────────────────
+  // â”€â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -65,7 +72,7 @@ export default function QuestionBankPage() {
       setQuestions(data.data);
       setTotal(data.total);
     } catch {
-      message.error('Không thể tải danh sách câu hỏi');
+      message.error('KhÃ´ng thá»ƒ táº£i danh sÃ¡ch cÃ¢u há»i');
     } finally {
       setLoading(false);
     }
@@ -75,19 +82,19 @@ export default function QuestionBankPage() {
     fetchQuestions();
   }, [fetchQuestions]);
 
-  // ─── Handlers ───────────────────────────────────────────────
+  // â”€â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleDelete = (id: string) => {
     confirmModal({
-      title: 'Xóa câu hỏi',
-      content: 'Bạn có chắc chắn muốn xóa câu hỏi này? Hành động này không thể hoàn tác.',
+      title: 'XÃ³a cÃ¢u há»i',
+      content: 'Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a cÃ¢u há»i nÃ y? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.',
       onConfirm: async () => {
         try {
           await questionsApi.delete(id);
-          message.success('Đã xóa câu hỏi');
+          message.success('ÄÃ£ xÃ³a cÃ¢u há»i');
           fetchQuestions();
         } catch {
-          message.error('Không thể xóa câu hỏi');
+          message.error('KhÃ´ng thá»ƒ xÃ³a cÃ¢u há»i');
         }
       },
     });
@@ -98,18 +105,31 @@ export default function QuestionBankPage() {
     setPageSize(newPageSize);
   };
 
-  // ─── Columns ────────────────────────────────────────────────
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile: ChangeEventHandler<HTMLInputElement> = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // TODO: wire up CSV parsing + API endpoint when backend is ready
+    message.info(`ÄÃ£ chá»n file CSV: ${file.name} (tÃ­nh nÄƒng import sáº½ Ä‘Æ°á»£c bá»• sung).`);
+    event.target.value = '';
+  };
+
+  // â”€â”€â”€ Columns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const columns: ColumnsType<Question> = [
     {
-      title: 'Nội dung',
+      title: 'Ná»™i dung',
       dataIndex: 'content',
       key: 'content',
       ellipsis: true,
       width: 350,
     },
     {
-      title: 'Loại',
+      title: 'Loáº¡i',
       dataIndex: 'type',
       key: 'type',
       width: 160,
@@ -118,7 +138,7 @@ export default function QuestionBankPage() {
       ),
     },
     {
-      title: 'Độ khó',
+      title: 'Äá»™ khÃ³',
       dataIndex: 'difficulty',
       key: 'difficulty',
       width: 120,
@@ -129,14 +149,14 @@ export default function QuestionBankPage() {
       ),
     },
     {
-      title: 'Bài học',
+      title: 'BÃ i há»c',
       dataIndex: 'lessonTitle',
       key: 'lessonTitle',
       width: 200,
-      render: (title: string | undefined) => title || '—',
+      render: (title: string | undefined) => title || 'â€”',
     },
     {
-      title: 'Thao tác',
+      title: 'Thao tÃ¡c',
       key: 'actions',
       width: 120,
       render: (_, record) => (
@@ -157,27 +177,39 @@ export default function QuestionBankPage() {
     },
   ];
 
-  // ─── Render ─────────────────────────────────────────────────
+  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <>
       <PageHeader
         title="Ngân hàng câu hỏi"
         actions={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/questions/create')}
-          >
-            Tạo câu hỏi
-          </Button>
+          <Space direction="vertical">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/questions/create')}
+            >
+              Tạo câu hỏi
+            </Button>
+            <Button icon={<UploadOutlined />} onClick={handleImportClick}>
+              Import file CSV
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
+            />
+          </Space>
         }
       />
 
       {/* Filter bar */}
       <Space wrap style={{ marginBottom: 16 }}>
         <Select
-          placeholder="Loại câu hỏi"
+          placeholder="Loáº¡i cÃ¢u há»i"
           allowClear
           style={{ width: 200 }}
           value={typeFilter}
@@ -191,7 +223,7 @@ export default function QuestionBankPage() {
           }))}
         />
         <Select
-          placeholder="Độ khó"
+          placeholder="Äá»™ khÃ³"
           allowClear
           style={{ width: 150 }}
           value={difficultyFilter}
@@ -205,7 +237,7 @@ export default function QuestionBankPage() {
           }))}
         />
         <Input
-          placeholder="Tìm kiếm câu hỏi..."
+          placeholder="TÃ¬m kiáº¿m cÃ¢u há»i..."
           prefix={<SearchOutlined />}
           allowClear
           style={{ width: 260 }}
@@ -230,3 +262,7 @@ export default function QuestionBankPage() {
     </>
   );
 }
+
+
+
+
