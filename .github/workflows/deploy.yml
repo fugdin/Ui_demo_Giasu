@@ -3,6 +3,14 @@ name: Deploy Admin to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/admin/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-admin
   cancel-in-progress: true
 
 jobs:
