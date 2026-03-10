@@ -17,10 +17,11 @@ import type {
 } from '@ai-learning/types';
 import api, { setAccessToken, getAccessToken } from '../services/api';
 
-// Mock auth toggle (enable in any environment with VITE_ENABLE_MOCK_AUTH=true)
+// Mock auth toggle (enable in any environment with VITE_ENABLE_MOCK_AUTH=true or when served from GitHub Pages)
 const mockAuthEnabled =
-  typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.VITE_ENABLE_MOCK_AUTH === 'true';
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as any).env?.VITE_ENABLE_MOCK_AUTH === 'true') ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io'));
 const MOCK_USER_STORAGE_KEY = 'ai-learning-mock-user';
 
 // ─── Context shape ──────────────────────────────────────

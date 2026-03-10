@@ -23,9 +23,10 @@ export function setAccessToken(token: string | null): void {
 // ─── Axios instance ─────────────────────────────────────
 
 const API_BASE_URL =
-  typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL
-    ? (import.meta as any).env.VITE_API_URL
-    : 'http://localhost:4000/api';
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+    ? 'https://example.com/api'
+    : 'http://localhost:4000/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

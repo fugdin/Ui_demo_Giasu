@@ -27,8 +27,9 @@ import type {
 } from '@ai-learning/types';
 
 const mockEnabled =
-  typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.VITE_ENABLE_MOCK_DATA === 'true';
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as any).env?.VITE_ENABLE_MOCK_DATA === 'true') ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io'));
 
 // In-memory DB (mutable during session)
 let usersDb = deepClone(usersSeed);
