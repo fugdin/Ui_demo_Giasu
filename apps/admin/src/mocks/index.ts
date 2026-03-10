@@ -1,4 +1,4 @@
-import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { api } from '@ai-learning/auth';
 import {
   usersSeed,
@@ -58,7 +58,7 @@ if (mockEnabled) {
 // ─────────────────── Helpers ───────────────────
 
 function buildResponse<T>(
-  config: AxiosRequestConfig,
+  config: InternalAxiosRequestConfig,
   data: T,
   status = 200,
   statusText = 'OK',
@@ -73,7 +73,7 @@ function buildResponse<T>(
   };
 }
 
-function getPath(config: AxiosRequestConfig): string {
+function getPath(config: InternalAxiosRequestConfig): string {
   try {
     return new URL(config.url || '', config.baseURL || window.location.origin).pathname;
   } catch {
@@ -86,7 +86,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ─────────────────── Mock router ───────────────────
 
 async function handleMockRequest(
-  config: AxiosRequestConfig,
+  config: InternalAxiosRequestConfig,
 ): Promise<AxiosResponse | undefined> {
   const method = (config.method || 'get').toLowerCase();
   const path = getPath(config);
@@ -249,7 +249,7 @@ async function handleMockRequest(
     lessonsDb.push(newLesson);
     lessonTheoryDb[newLesson.id] = {
       lessonId: newLesson.id,
-      htmlContent: `<p>Nội dung cho ${newLesson.title}</p>`,
+      pdfUrl: '',
       slideEnabled: false,
     };
     lessonInteractionDb[newLesson.id] = {
@@ -448,7 +448,7 @@ async function handleMockRequest(
 
 // ─────────────────── Helpers for pagination ───────────────────
 
-function paginateUsers(config: AxiosRequestConfig) {
+function paginateUsers(config: InternalAxiosRequestConfig) {
   const params = config.params || {};
   const page = Number(params.page ?? 1);
   const pageSize = Number(params.pageSize ?? 10);
@@ -481,7 +481,7 @@ function paginateUsers(config: AxiosRequestConfig) {
   };
 }
 
-function paginateCourses(config: AxiosRequestConfig) {
+function paginateCourses(config: InternalAxiosRequestConfig) {
   const params = config.params || {};
   const page = Number(params.page ?? 1);
   const pageSize = Number(params.pageSize ?? 10);
@@ -502,7 +502,7 @@ function paginateCourses(config: AxiosRequestConfig) {
   };
 }
 
-function paginateQuestions(config: AxiosRequestConfig) {
+function paginateQuestions(config: InternalAxiosRequestConfig) {
   const params = config.params || {};
   const page = Number(params.page ?? 1);
   const pageSize = Number(params.pageSize ?? 10);

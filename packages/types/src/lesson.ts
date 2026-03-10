@@ -27,6 +27,7 @@ export interface LessonTheory {
   pdfUrl?: string;
   slideEnabled: boolean;
   slideEmbedUrl?: string;
+  htmlContent?: string;
 }
 
 export interface LessonInteraction {
