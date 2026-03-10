@@ -30,15 +30,18 @@ const vietnameseValidateMessages: FormProps['validateMessages'] = {
 
 // ─── Props ───────────────────────────────────────────────────
 
-export interface FormField extends FormItemProps {
-  /** Unique field key used as `name`. */
-  key: string;
+export interface FormField extends Omit<FormItemProps, 'name' | 'children'> {
+  /** Field name (required by antd). */
+  name: FormItemProps['name'];
+  /** Optional custom React key; defaults to `name` stringified. */
+  key?: string;
   /** The form control element (Input, Select, etc.). */
   render: React.ReactNode;
 }
 
-export interface FormBuilderProps<T = unknown>
-  extends Omit<FormProps<T>, 'validateMessages' | 'children'> {
+type BaseFormProps<T> = Omit<FormProps<T>, 'validateMessages' | 'children' | 'fields'>;
+
+export interface FormBuilderProps<T = unknown> extends BaseFormProps<T> {
   /** Array of field descriptors. Each one renders a Form.Item. */
   fields: FormField[];
   /** Label for the submit button. Defaults to "Lưu". */
@@ -78,8 +81,8 @@ function FormBuilder<T = unknown>({
       scrollToFirstError
       {...formProps}
     >
-      {fields.map(({ key, render, ...itemProps }) => (
-        <Form.Item key={key} name={key as string} {...itemProps}>
+      {fields.map(({ key, render, name, ...itemProps }) => (
+        <Form.Item key={key ?? String(name)} name={name} {...itemProps}>
           {render}
         </Form.Item>
       ))}
