@@ -17,10 +17,9 @@ import type {
 } from '@ai-learning/types';
 import api, { setAccessToken, getAccessToken } from '../services/api';
 
-// Dev-only mock auth toggle (set VITE_ENABLE_MOCK_AUTH=true in the app's env)
+// Mock auth toggle (enable in any environment with VITE_ENABLE_MOCK_AUTH=true)
 const mockAuthEnabled =
   typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.DEV &&
   (import.meta as any).env?.VITE_ENABLE_MOCK_AUTH === 'true';
 const MOCK_USER_STORAGE_KEY = 'ai-learning-mock-user';
 

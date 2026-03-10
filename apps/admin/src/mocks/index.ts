@@ -28,7 +28,6 @@ import type {
 
 const mockEnabled =
   typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.DEV &&
   (import.meta as any).env?.VITE_ENABLE_MOCK_DATA === 'true';
 
 // In-memory DB (mutable during session)

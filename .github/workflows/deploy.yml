@@ -38,7 +38,12 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build --workspace=@ai-learning/admin
+      - name: Build admin with mock API
+        run: npm run build --workspace=@ai-learning/admin
+        env:
+          VITE_ENABLE_MOCK_DATA: 'true'
+          VITE_ENABLE_MOCK_AUTH: 'true'
+          VITE_API_URL: 'https://example.com/api'
 
       - name: Copy 404.html for SPA routing
         run: cp apps/admin/dist/index.html apps/admin/dist/404.html
