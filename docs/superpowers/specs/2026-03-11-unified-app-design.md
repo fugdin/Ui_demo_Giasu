@@ -27,8 +27,8 @@ apps/web/                          ← renamed từ apps/student/
 │   ├── App.tsx                    ← BrowserRouter > AuthProvider > AppRoutes
 │   ├── routes/
 │   │   ├── index.tsx              ← Root router: public + role-based splits
-│   │   ├── adminRoutes.tsx        ← React.lazy() all admin pages, AdminLayout
-│   │   ├── studentRoutes.tsx      ← React.lazy() all student pages, MainLayout
+│   │   ├── adminRoutes.tsx        ← React.lazy() all admin pages, wrapped in Suspense with Spin fallback
+│   │   ├── studentRoutes.tsx      ← React.lazy() all student pages, wrapped in Suspense with Spin fallback
 │   │   └── teacherRoutes.tsx      ← Placeholder "Coming soon"
 │   ├── layouts/
 │   │   ├── AdminLayout.tsx        ← Copy từ admin (sidebar), sửa navigation → /admin/*
@@ -83,7 +83,7 @@ apps/web/                          ← renamed từ apps/student/
 /login, /register          → AuthPage (GuestRoute)
 /verify-email              → VerifyEmailPage (AuthLayout)
 
-/admin/                    → AdminLayout (sidebar)
+/admin/                    → AdminLayout (sidebar) → DashboardPage (index)
 /admin/users               → UserManagementPage
 /admin/fields              → FieldManagementPage
 /admin/courses             → CourseManagementPage
@@ -99,7 +99,7 @@ apps/web/                          ← renamed từ apps/student/
 /admin/assessment-config   → AssessmentConfigPage
 /admin/settings            → SystemSettingsPage
 
-/student/                  → MainLayout (top-bar)
+/student/                  → MainLayout (top-bar) → DashboardPage (index)
 /student/assessment        → AssessmentStartPage
 /student/assessment/take   → AssessmentTakePage
 /student/assessment/result/:id → AssessmentResultPage
@@ -115,7 +115,7 @@ apps/web/                          ← renamed từ apps/student/
 ```tsx
 <Routes>
   {/* Public */}
-  <Route element={<GuestRoute />}>
+  <Route element={<GuestRoute redirectTo="/" />}>
     <Route path="/login" element={<AuthPage />} />
     <Route path="/register" element={<AuthPage />} />
   </Route>
@@ -124,13 +124,13 @@ apps/web/                          ← renamed từ apps/student/
   </Route>
 
   {/* Role-based (lazy loaded) */}
-  <Route element={<RoleRoute allowedRole="admin" />}>
+  <Route element={<RoleRoute allowedRoles={['admin']} />}>
     <Route path="/admin/*" element={<AdminRoutes />} />
   </Route>
-  <Route element={<RoleRoute allowedRole="student" />}>
+  <Route element={<RoleRoute allowedRoles={['student']} />}>
     <Route path="/student/*" element={<StudentRoutes />} />
   </Route>
-  <Route element={<RoleRoute allowedRole="teacher" />}>
+  <Route element={<RoleRoute allowedRoles={['teacher']} />}>
     <Route path="/teacher/*" element={<TeacherRoutes />} />
   </Route>
 
@@ -158,21 +158,21 @@ Replaces `ProtectedRoute` from `packages/auth`. Does NOT modify the package.
 
 ```tsx
 interface RoleRouteProps {
-  allowedRole: UserRole;
+  allowedRoles: UserRole[];
 }
 
-function RoleRoute({ allowedRole }: RoleRouteProps) {
+function RoleRoute({ allowedRoles }: RoleRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return <Spin fullscreen />;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  if (user?.role !== allowedRole) return <Navigate to={`/${user?.role}/`} />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user?.role!)) return <Navigate to={`/${user?.role}/`} replace />;
 
   return <Outlet />;
 }
 ```
 
-Key difference from ProtectedRoute: uses `<Navigate>` (SPA navigation) instead of `window.location.href` (full page redirect to different port).
+Key difference from ProtectedRoute: uses `<Navigate replace>` (SPA navigation) instead of `window.location.href` (full page redirect to different port). Uses `replace` to prevent history pollution (back button redirect loops).
 
 ### RoleRedirect (new)
 
@@ -180,8 +180,8 @@ Key difference from ProtectedRoute: uses `<Navigate>` (SPA navigation) instead o
 function RoleRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <Spin fullscreen />;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  return <Navigate to={`/${user?.role}/`} />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Navigate to={`/${user?.role}/`} replace />;
 }
 ```
 
@@ -201,6 +201,7 @@ function RoleRedirect() {
 - Keep from student app
 - Change dropdown "Chuyển giao diện": `window.location.href` → `navigate('/admin/')`, `navigate('/teacher/')`
 - Change menu navigation: add `/student/` prefix to paths
+- Change logo click: `navigate('/')` → `navigate('/student/')` (avoid unnecessary redirect through RoleRedirect)
 - Keep horizontal header style
 
 ### AuthLayout
@@ -219,6 +220,36 @@ Merge both mock routers into one Axios adapter override.
 - `adminData.ts` — copy from `apps/admin/src/mocks/data.ts`
 - `studentData.ts` — rename from `apps/student/src/mocks/data.ts`
 
+### Route Collision Resolution
+
+Admin and student mocks share overlapping endpoints (`GET /fields`, `GET /courses`, `GET /courses/:id`, `GET /courses/:id/lessons`). These are disambiguated using the **logged-in user's role** stored in localStorage mock:
+
+```
+GET /fields:
+  → if current user role === 'admin' → admin handler (full CRUD, returns fieldsDb)
+  → else → student handler (read-only, supports ?hasAssessment filter)
+
+GET /courses:
+  → if current user role === 'admin' → admin handler (paginated coursesDb)
+  → else → student handler (filtered by fieldId/level/search)
+
+GET /courses/:id:
+  → if current user role === 'admin' → admin handler (coursesDb lookup)
+  → else → student handler (coursesSeed lookup with HTML descriptions)
+
+GET /courses/:id/lessons:
+  → if current user role === 'admin' → admin handler (lessonsDb)
+  → else → student handler (lessonsSeed sorted by order)
+```
+
+**Implementation:** The mock router reads the current user from `localStorage.getItem('ai-learning-mock-user')`, parses the role, and dispatches to the correct handler for overlapping routes. Non-overlapping routes (e.g. `/users`, `/enrollments`, `/assessment/*`) match directly without role checking.
+
+**Route processing order:**
+1. Auth routes first (`/auth/*`) — always student mock handler
+2. Non-overlapping admin-only routes (`/users`, `/lessons/*`, `/questions/*`, `/assessment-config/*`, `/settings`, `/admin/dashboard`)
+3. Non-overlapping student-only routes (`/student/dashboard`, `/enrollments`, `/assessment/*`, `/fields/:id/subjects`)
+4. Overlapping routes with role-based dispatch (`/fields`, `/courses`, `/courses/:id`, `/courses/:id/lessons`)
+
 **Route groups:**
 
 | Group | Endpoints | Source |
@@ -226,15 +257,14 @@ Merge both mock routers into one Axios adapter override.
 | Auth | `POST /auth/login\|register\|refresh`, `GET /auth/me` | student mock (multi-role) |
 | Admin Dashboard | `GET /admin/dashboard` | admin mock |
 | Users | `GET/POST /users`, `PATCH /users/:id` | admin mock |
-| Fields (admin) | `GET/POST /fields`, `PUT/PATCH/DELETE /fields/:id` | admin mock |
-| Courses (admin) | `GET/POST /courses`, `GET/PUT /courses/:id` | admin mock |
+| Fields | `GET/POST /fields`, `PUT/PATCH/DELETE /fields/:id` | role-dispatched (admin: CRUD, student: read + filter) |
+| Courses | `GET/POST /courses`, `GET/PUT /courses/:id` | role-dispatched (admin: CRUD, student: read + filter) |
 | Lessons | Full CRUD + theory + interaction + questions | admin mock |
 | Questions | Full CRUD | admin mock |
 | Assessment Config | `GET/PUT /assessment-config` | admin mock |
 | Settings | `GET/PUT /settings` | admin mock |
 | Student Dashboard | `GET /student/dashboard` | student mock |
-| Fields (student) | `GET /fields`, `GET /fields/:id/subjects` | student mock |
-| Courses (student) | `GET /courses`, `GET /courses/:id`, `GET /courses/:id/lessons` | student mock |
+| Subjects | `GET /fields/:id/subjects` | student mock |
 | Enrollments | `GET/POST /enrollments` | student mock |
 | Assessment | `POST /assessment/start\|submit`, `GET /assessment/result/:id` | student mock |
 
@@ -257,32 +287,48 @@ Password: `123456` for all.
 
 ## 6. Dependencies
 
-### Added to apps/web/package.json (from admin)
+### Added to apps/web/package.json (from admin — only truly new deps)
 
 ```json
 {
-  "@ant-design/charts": "...",
   "@dnd-kit/core": "...",
   "@dnd-kit/sortable": "...",
   "@dnd-kit/utilities": "...",
   "@monaco-editor/react": "...",
-  "@tinymce/tinymce-react": "...",
-  "dayjs": "..."
+  "@tinymce/tinymce-react": "..."
 }
 ```
+
+Note: `@ant-design/charts` and `dayjs` are already in student's package.json — no need to add.
 
 ### Workspace Updates
 
 **Root package.json scripts:**
 - Remove: `dev:admin`, `dev:teacher`
-- Rename: `dev:student` → `dev:web`
+- Change: `"dev:web": "turbo run dev --filter=@ai-learning/web"` (filter matches new package name)
 - Keep: `dev` (turbo run dev — auto-detects remaining app)
+
+### Vite Config
+
+- Keep port 3001
+- Keep `base: '/'` (student default) — do NOT inherit admin's `base: '/Ui_demo_Giasu/'`
+- Keep `@` alias (`resolve.alias: { '@': path.resolve(__dirname, './src') }`)
+- `BrowserRouter` in `App.tsx`: no `basename` prop (matches `base: '/'`)
 
 ### Cleanup
 
 - Delete: `apps/admin/` (fully merged)
 - Delete: `apps/teacher/` (placeholder integrated)
-- Delete: Legacy `LoginPage.tsx`, `RegisterPage.tsx` in student
+- Delete: Legacy `LoginPage.tsx`, `RegisterPage.tsx` in student (already replaced by `Auth/AuthPage.tsx`)
+- Do NOT copy: admin's `AuthPage.tsx`, `LoginPage.tsx`, `RegisterPage.tsx` (using student's AuthPage)
+
+### AuthPage Decision
+
+Using student's `Auth/AuthPage.tsx` which includes:
+- Sliding panel login/register UI
+- `PasswordStrength` component on register form
+- Register flow: on success → `navigate('/verify-email?email=...')` (email verification)
+- This is the behavior for ALL roles (admin, student, teacher)
 
 ---
 
@@ -290,7 +336,7 @@ Password: `123456` for all.
 
 Admin pages currently use absolute paths like `navigate('/courses')`. After merge, these need `/admin/` prefix.
 
-**Strategy:** Update all `navigate()` and `<Link>` calls in admin pages to include `/admin/` prefix.
+**Strategy:** Update all `navigate()`, `<Link>`, and breadcrumb `path` props in admin pages to include `/admin/` prefix.
 
 Affected patterns:
 - `navigate('/courses')` → `navigate('/admin/courses')`
@@ -298,6 +344,30 @@ Affected patterns:
 - `navigate('/questions')` → `navigate('/admin/questions')`
 - `navigate(-1)` — no change needed (relative back navigation)
 - Dynamic paths like `` navigate(`/courses/${id}/edit`) `` → `` navigate(`/admin/courses/${id}/edit`) ``
+- Breadcrumb `path` props: `{ path: '/courses' }` → `{ path: '/admin/courses' }` (affects CourseFormPage, LessonManagementPage, LessonFormPage, LessonContentPage, QuestionFormPage)
+
+### Admin Import Path Fix
+
+Admin pages use `@/services/api` import alias. After copying into `apps/web/`, this resolves to the **student** API service. All admin page imports must be updated:
+
+- `import { ...Api } from '@/services/api'` → `import { ...Api } from '@/services/adminApi'`
+- Affected: all 12 admin pages that import from `@/services/api`
+
+---
+
+## 7b. Student Page Navigation Fix
+
+Student pages also use hardcoded absolute paths that break when moved under `/student/*`:
+
+| Page | Current | After |
+|---|---|---|
+| `DashboardPage` | `navigate('/courses/${id}')`, `navigate('/assessment')` | `navigate('/student/courses/${id}')`, `navigate('/student/assessment')` |
+| `AssessmentStartPage` | `navigate('/assessment/take')` | `navigate('/student/assessment/take')` |
+| `AssessmentTakePage` | `navigate('/assessment', ...)`, `navigate('/assessment/result/${id}', ...)` | `navigate('/student/assessment', ...)`, `navigate('/student/assessment/result/${id}', ...)` |
+| `AssessmentResultPage` | `navigate('/courses')`, `navigate('/')` | `navigate('/student/courses')`, `navigate('/student/')` |
+| `CourseDetailPage` | `navigate('/my-courses')` | `navigate('/student/my-courses')` |
+| `MyCoursesPage` | `navigate('/courses')`, `navigate('/courses/${id}')` | `navigate('/student/courses')`, `navigate('/student/courses/${id}')` |
+| `AuthPage` | `navigate('/verify-email?email=...')` | No change (verify-email is a public route, not under /student/) |
 
 ---
 
