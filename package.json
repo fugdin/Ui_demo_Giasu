@@ -9,9 +9,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "dev:admin": "turbo run dev --filter=@ai-learning/admin",
-    "dev:student": "turbo run dev --filter=@ai-learning/student",
-    "dev:teacher": "turbo run dev --filter=@ai-learning/teacher"
+    "dev:web": "turbo run dev --filter=@ai-learning/web"
   },
   "devDependencies": {
     "turbo": "^2.4.0",

@@ -1,3 +1,28 @@
+// ─── Chapter (Chương) ───────────────────────────────────
+
+export interface Chapter {
+  id: string;
+  courseId: string;
+  title: string;
+  order: number;
+  lessonCount: number;
+}
+
+export interface ChapterWithLessons extends Chapter {
+  lessons: LessonInChapter[];
+}
+
+export interface LessonInChapter {
+  id: string;
+  chapterId: string;
+  title: string;
+  order: number;
+  /** e.g. "1.1", "2.3" */
+  label: string;
+  status: 'passed' | 'failed' | 'not_started' | 'locked';
+  shortDescription: string;
+}
+
 // ─── Lesson (Bài học) ────────────────────────────────────
 
 export type InteractionType = 'video_youtube' | 'simulation_html_css';
@@ -5,6 +30,7 @@ export type InteractionType = 'video_youtube' | 'simulation_html_css';
 export interface Lesson {
   id: string;
   courseId: string;
+  chapterId?: string;
   title: string;
   order: number;
   interactionType: InteractionType;
